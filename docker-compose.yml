@@ -1,0 +1,13 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    container_name: biblioteca-fpsf
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+    restart: unless-stopped
