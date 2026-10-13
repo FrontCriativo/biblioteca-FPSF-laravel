@@ -20,7 +20,7 @@ class UsuarioResource extends JsonResource
             'nome' => $this->nome,
             'email' => $this->email,
             'papel' => $this->papel,
-            'turma' => $this->turma,
+            'turma' => $this->turma?->nome,
             $this->mergeWhen($naListagemAdmin, fn () => [
                 'criado_em' => $this->criado_em?->utc()->format('Y-m-d H:i:s'),
                 'reservas_ativas' => (int) $this->reservas_ativas,

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Livro;
 use App\Models\Materia;
+use App\Models\Turma;
 use App\Models\Usuario;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -115,23 +116,21 @@ class DatabaseSeeder extends Seeder
                 }
             }
 
-            foreach (self::TURMAS as $nome) {
-                DB::table('turmas')->insertOrIgnore(['nome' => $nome, 'ano_letivo' => now()->year]);
-            }
-            $turmas = DB::table('turmas')->pluck('id', 'nome');
+            $turmas = collect(self::TURMAS)->mapWithKeys(fn (string $nome) => [
+                $nome => Turma::firstOrCreate(['nome' => $nome], ['ano_letivo' => now()->year])->id,
+            ]);
 
             foreach (self::USUARIOS as [$nome, $email, $senha, $papel, $turma]) {
                 $usuario = Usuario::firstOrCreate(['email' => $email], [
                     'nome' => $nome,
                     'senha' => $senha,
                     'papel' => $papel,
-                    'turma' => $turma,
+                    'turma_id' => $turma === null ? null : $turmas[$turma],
                 ]);
 
-                // turma_id ainda não está no $fillable do model; o texto em
-                // usuarios.turma continua sendo o que a API usa.
+                // Usuário criado antes de existir turma_id fica ligado à turma agora.
                 if ($turma !== null && $usuario->turma_id === null) {
-                    $usuario->forceFill(['turma_id' => $turmas[$turma]])->save();
+                    $usuario->update(['turma_id' => $turmas[$turma]]);
                 }
             }
 

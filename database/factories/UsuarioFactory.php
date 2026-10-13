@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Turma;
 use App\Models\Usuario;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,12 +20,18 @@ class UsuarioFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'senha' => 'aluno123',
             'papel' => 'aluno',
-            'turma' => '9º ano A',
+            'turma_id' => fn () => Turma::firstOrCreate(['nome' => '9º ano A'], ['ano_letivo' => now()->year])->id,
+            'ativo' => true,
         ];
     }
 
     public function admin(): static
     {
-        return $this->state(['papel' => 'admin', 'turma' => null]);
+        return $this->state(['papel' => 'admin', 'turma_id' => null]);
+    }
+
+    public function inativo(): static
+    {
+        return $this->state(['ativo' => false]);
     }
 }

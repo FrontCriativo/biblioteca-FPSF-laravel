@@ -145,6 +145,8 @@ estrutura vem das migrations em `database/migrations/`:
 | `2026_10_13_000004_create_depoimentos_table` | `depoimentos` |
 | `2026_10_13_000005_create_mensagens_contato_table` | `mensagens_contato` |
 | `2026_10_13_000006_alter_reservas_for_emprestimo` | `reservas`: `retirada_em`, `devolver_ate`, `renovacoes`, `observacao` |
+| `2026_10_13_123859_remove_turma_from_usuarios_table` | remove o texto livre `usuarios.turma` (o `down()` o recria a partir de `turmas.nome`) |
+| `2026_10_13_123900_add_ativo_to_usuarios_table` | `usuarios.ativo` (padrão `true`; conta desativada não entra) |
 
 Ao todo são 16 tabelas (contando `migrations`), 104 colunas e 9 chaves estrangeiras:
 
@@ -163,9 +165,11 @@ Ao todo são 16 tabelas (contando `migrations`), 104 colunas e 9 chaves estrange
 A regra "um exemplar só pode ter uma reserva aberta" é garantida pelo próprio
 banco com um índice único parcial (`reservas_exemplar_aberta_unique`).
 
-A coluna `usuarios.turma` (texto livre) continua existindo enquanto a API não
-passa a usar `turma_id`. O levantamento completo, com o mapa do banco e as
-conferências feitas, está em [`docs/banco-de-dados.md`](docs/banco-de-dados.md).
+A turma do usuário fica em `usuarios.turma_id` (model `App\Models\Turma`); o
+antigo texto livre `usuarios.turma` foi removido. No JSON, a chave `turma`
+continua sendo o nome da turma ("8º ano B"), então o front-end não mudou. O
+levantamento completo, com o mapa do banco e as conferências feitas, está em
+[`docs/banco-de-dados.md`](docs/banco-de-dados.md).
 
 > **Atenção:** não rode `migrate:fresh`, `migrate:refresh`, `migrate:reset` nem
 > `db:wipe` no banco principal. Esses comandos apagam todas as tabelas, incluindo

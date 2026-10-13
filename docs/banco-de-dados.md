@@ -155,10 +155,13 @@ Como ler a saída, em paralelo com as colunas do `DESCRIBE`:
 | email | varchar | não | | único, sempre em minúsculas |
 | senha | varchar | não | | hash bcrypt |
 | papel | varchar(10) | não | `'aluno'` | `aluno` \| `admin` |
-| turma | varchar(40) | sim | | texto livre ("8º ano B") |
+| turma | varchar(40) | sim | | texto livre ("8º ano B") — **removida na Parte 6** |
 | criado_em | datetime | não | CURRENT_TIMESTAMP | |
 
 Índices: `primary (id)`, `usuarios_email_unique (email)`.
+
+> Estrutura no dia do levantamento. A estrutura atual (com `turma_id` e `ativo`, sem
+> `turma`) está na [Parte 6](#parte-6--finalização-da-turma-e-status-do-usuário).
 
 #### materias
 
@@ -480,14 +483,108 @@ usuarios.turma_id            -> turmas.id      (set null)
 - `tests/Feature/EstruturaDoBancoTest.php` confere as novas tabelas e colunas, o índice parcial
   depois da alteração de `reservas`, o seeder e o índice único de favoritos.
 
+## Parte 6 — Finalização da turma e status do usuário
+
+Equivalente ao par `migrate_client_addresses_to_tbl_enderecos_cliente` +
+`remove_address_columns_from_tbl_clientes` da aula da DaVilla: os dados já tinham sido copiados
+para `turmas` (Parte 2, item 3); falta tirar a coluna antiga da tabela principal. Antes disso o
+código precisou parar de usar `usuarios.turma`.
+
+### 1. Conferência antes de remover
+
+Todo usuário com `turma` preenchida precisa ter `turma_id` apontando para uma turma com o mesmo
+nome:
+
+```sql
+SELECT u.id, u.turma, u.turma_id, t.nome
+  FROM usuarios u LEFT JOIN turmas t ON t.id = u.turma_id
+ WHERE trim(coalesce(u.turma, '')) <> ''
+   AND (u.turma_id IS NULL OR t.nome IS NULL OR t.nome <> trim(u.turma));
+```
+
+Resultado: nenhuma linha (Beatriz → `8º ano B`, Rafael → `9º ano A`, admin sem turma).
+
+### 2. O código passa a usar `turma_id`
+
+| Arquivo | Mudança |
+|---|---|
+| `App\Models\Turma` (novo) | tabela `turmas`, `criada_em`/`atualizada_em`, cast `ativa` boolean, relação `usuarios()` |
+| `App\Models\Usuario` | relação `turma()` (belongsTo), `$with = ['turma']`, `turma_id` e `ativo` no `$fillable` (no lugar de `turma`), cast `ativo` boolean |
+| `UsuarioResource`, `ReservaResource` | a chave `turma` continua sendo o **nome** (`$this->turma?->nome`), então o front-end (`admin.js`) não muda |
+| `NovoUsuarioRequest` + `Admin\UsuarioController@store` | continuam recebendo `turma` como texto; o controller faz `Turma::firstOrCreate(['nome' => ...], ['ano_letivo' => ano atual])` e grava `turma_id` |
+| `DatabaseSeeder`, `UsuarioFactory` | criam a turma antes e usam `turma_id` |
+
+O `$with = ['turma']` carrega a turma junto com o usuário em toda consulta. Sem ele, o
+`Model::preventLazyLoading()` (ligado em desenvolvimento) lançaria exceção ao montar o JSON do
+usuário na listagem do painel e nas reservas.
+
+### 3. Migrations
+
+```bash
+docker compose exec -u app app php artisan make:migration remove_turma_from_usuarios_table --table=usuarios
+docker compose exec -u app app php artisan make:migration add_ativo_to_usuarios_table --table=usuarios
+```
+
+| Migration | `up()` | `down()` |
+|---|---|---|
+| `2026_10_13_123859_remove_turma_from_usuarios_table` | remove `usuarios.turma` | recria `turma` (varchar 40, nula) e a preenche com `turmas.nome` via `turma_id` |
+| `2026_10_13_123900_add_ativo_to_usuarios_table` | `boolean('ativo')->default(true)` (todos os usuários existentes ficam ativos) | remove `ativo` |
+
+`ativo = false` é a conta desativada pela coordenação. A regra (não entrar no site nem gerar
+token na API v1, erro 403) entra junto com a autenticação por token, na
+[Parte 7](#parte-7--tokens-da-api-v1-personal_access_tokens).
+
+O SQLite recriou a tabela `usuarios` ao remover a coluna (a definição da FK `turma_id` passou para
+dentro do `CREATE TABLE`). Como na Parte 2, o Laravel desliga as chaves estrangeiras durante a
+recriação, então nada foi apagado em cascata.
+
+### 4. Validação
+
+1. **Banco vazio** (`database/biblioteca_migrations_teste.sqlite`): `db:show` com 0 tabelas, as 12
+   migrations rodaram no lote 1.
+2. **Cópia do principal** (`VACUUM INTO database/biblioteca_copia_teste.sqlite`, mais linhas
+   fictícias só na cópia: 2 reservas, 2 favoritos, 1 depoimento e 1 mensagem de contato, todos
+   ligados a usuários):
+   - `migrate` → `migrate:rollback --step=2` → `migrate`;
+   - em cada etapa: contagens iguais (`reservas=2 depoimentos=1 favoritos=2 mensagens_contato=1`),
+     `PRAGMA foreign_key_check` vazio, as 4 FKs que apontam para `usuarios` e a FK `turma_id`
+     intactas, índice único `usuarios_email_unique` presente;
+   - depois do rollback, `usuarios.turma` voltou com `8º ano B` / `9º ano A` / NULL.
+3. **Banco principal**: backup em `backup/biblioteca-antes-remover-turma-2026-10-13-094020.sqlite`
+   (`integrity_check` ok), depois `migrate` (lote 3) e as mesmas conferências.
+4. Arquivos de teste apagados.
+
+| | Antes | Depois |
+|---|---|---|
+| Colunas de `usuarios` | id, nome, email, senha, papel, **turma**, criado_em, turma_id | id, nome, email, senha, papel, criado_em, turma_id, **ativo** |
+| usuarios / turmas | 3 / 2 | 3 / 2 |
+| reservas / depoimentos / favoritos / mensagens_contato | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| `PRAGMA foreign_key_check` | vazio | vazio |
+| FKs para `usuarios` | reservas (cascade), favoritos (cascade), depoimentos (set null), mensagens_contato (set null) | iguais |
+| Índice único de e-mail | sim | sim |
+
+#### usuarios (estrutura atual)
+
+| Coluna | Tipo | Nulo | Padrão | Observação |
+|---|---|---|---|---|
+| id | integer | não | | PK, autoincremento |
+| nome | varchar | não | | |
+| email | varchar | não | | único, sempre em minúsculas |
+| senha | varchar | não | | hash bcrypt |
+| papel | varchar(10) | não | `'aluno'` | `aluno` \| `admin` |
+| criado_em | datetime | não | CURRENT_TIMESTAMP | |
+| turma_id | integer | sim | | FK → turmas.id (set null) |
+| ativo | boolean | não | `1` | conta desativada não entra |
+
+`tests/Feature/EstruturaDoBancoTest.php` agora confere que `usuarios.turma` não existe mais e que
+`ativo` existe.
+
 ## Próxima etapa
 
-- Models `Turma`, `Favorito`, `Depoimento`, `MensagemContato` e os novos campos em `Reserva`
-  e `Usuario` (`turma_id` no `$fillable`, relações).
+- Models `Favorito`, `MensagemContato` e os novos campos em `Reserva`.
 - Rotas da API, Form Requests (tamanhos dos campos, nota 1–5, assuntos e status permitidos)
   e Resources.
 - Retirada preenchendo `retirada_em` e `devolver_ate`; renovação; lista de atrasos.
 - Integração das páginas `depoimentos.html` e `contato.html`.
-- Adaptar `UsuarioResource`, `ReservaResource` e `NovoUsuarioRequest` para `turma_id` e,
-  depois, remover `usuarios.turma` numa migration nova.
+- Tela da coordenação para desativar/reativar contas (`usuarios.ativo`).
 - Instalar a extensão `intl` na imagem para o `db:show --counts` funcionar.

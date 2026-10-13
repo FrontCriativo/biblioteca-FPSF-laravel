@@ -33,7 +33,7 @@ class ReservaResource extends JsonResource
             'capa' => $livro->capa,
             'usuario_nome' => $this->usuario->nome,
             'usuario_email' => $this->usuario->email,
-            'turma' => $this->usuario->turma,
+            'turma' => $this->usuario->turma?->nome,
         ];
     }
 }

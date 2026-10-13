@@ -18,7 +18,8 @@ class EstruturaDoBancoTest extends TestCase
     public function test_novas_tabelas_e_colunas_existem(): void
     {
         $this->assertTrue(Schema::hasColumns('turmas', ['id', 'nome', 'ano_letivo', 'ativa', 'criada_em', 'atualizada_em']));
-        $this->assertTrue(Schema::hasColumns('usuarios', ['turma', 'turma_id']));
+        $this->assertTrue(Schema::hasColumns('usuarios', ['turma_id', 'ativo']));
+        $this->assertFalse(Schema::hasColumn('usuarios', 'turma'));
         $this->assertTrue(Schema::hasColumns('favoritos', ['id', 'usuario_id', 'livro_id', 'criado_em']));
         $this->assertTrue(Schema::hasColumns('depoimentos', [
             'id', 'usuario_id', 'nome', 'descricao_autor', 'texto', 'nota', 'status', 'criado_em', 'atualizado_em',
@@ -41,6 +42,8 @@ class EstruturaDoBancoTest extends TestCase
         $beatriz = Usuario::firstWhere('email', 'beatriz.lima@fpsf.edu.br');
 
         $this->assertSame('8º ano B', DB::table('turmas')->where('id', $beatriz->turma_id)->value('nome'));
+        $this->assertSame('8º ano B', $beatriz->turma->nome);
+        $this->assertTrue($beatriz->ativo);
         $this->assertSame(6, DB::table('depoimentos')->where('status', 'aprovado')->count());
         $this->assertSame($beatriz->id, DB::table('depoimentos')->where('nome', 'Beatriz Lima')->value('usuario_id'));
     }
