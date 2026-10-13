@@ -80,11 +80,42 @@ php artisan test
 | `backend/db/schema.sql` | `database/migrations/` |
 | `backend/db/seed.js` | `database/seeders/DatabaseSeeder.php` |
 | `frontend/` | `public/` |
+| — (novo) API pública v1 | `app/Http/Controllers/Api/V1/` (rotas no topo de `routes/api.php`, dentro de `Route::prefix('v1')`) |
+| — (novo) documentação da API | `resources/views/api/documentacao.blade.php` (rota em `routes/web.php`) |
 
-## API
+## API pública v1
+
+API só de leitura, sem login, para aplicativos e outros sistemas. A documentação
+completa, com exemplos de resposta, está em
+[`/api/documentacao`](http://localhost:8000/api/documentacao).
+
+URL base: `http://localhost:8000/api/v1`. Limite de 60 requisições por minuto.
+
+| Método | Rota | Parâmetros | Devolve |
+|---|---|---|---|
+| GET | `/api/v1/status` | — | se a API está no ar |
+| GET | `/api/v1/depoimentos` | — | depoimentos aprovados, mais recentes primeiro |
+| GET | `/api/v1/materias` | — | matérias com `total_livros` |
+| GET | `/api/v1/materias/{materia}/livros` | slug da matéria | livros da matéria (404 se não existir) |
+| GET | `/api/v1/livros` | `?materia=` · `?busca=` | livros com disponibilidade |
+| GET | `/api/v1/livros/{slug}` | slug do livro | detalhe do livro (404 se não existir) |
+
+Formato das respostas:
+
+```json
+{ "success": true, "data": { } }
+{ "success": false, "erro": "Livro não encontrado." }
+```
+
+A v1 fica no próprio `routes/api.php` (que já é carregado com o prefixo `api` no
+`then:` do `bootstrap/app.php`), e não numa chave `api:` no `withRouting()`: isso
+carregaria o arquivo duas vezes e tiraria a sessão das rotas que o site usa.
+
+## API do site
 
 As rotas e o formato das respostas continuam os mesmos (`/api/...`), e os erros
-continuam vindo como `{ "erro": "mensagem" }`.
+continuam vindo como `{ "erro": "mensagem" }`. Estas rotas são usadas pelo
+front-end (`public/js/api.js`) e não fazem parte da API pública.
 
 | Método | Rota | Acesso |
 |---|---|---|

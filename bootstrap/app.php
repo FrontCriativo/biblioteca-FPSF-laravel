@@ -35,14 +35,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo('/login.html');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // /api/documentacao é uma página HTML (Blade), não uma rota da API.
+        $ehApi = fn (Request $request) => $request->is('api/*') && ! $request->is('api/documentacao');
+
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+            fn (Request $request) => $ehApi($request) || $request->expectsJson(),
         );
 
         // Na API, todo erro sai como { "erro": "mensagem" }, que é o que
-        // public/js/api.js mostra para o usuário.
-        $exceptions->render(function (Throwable $e, Request $request) {
-            if (! $request->is('api/*')) {
+        // public/js/api.js mostra para o usuário. Na API pública v1, o mesmo
+        // erro ganha o envelope { "success": false, "erro": "mensagem" }.
+        $exceptions->render(function (Throwable $e, Request $request) use ($ehApi) {
+            if (! $ehApi($request)) {
                 return null;
             }
 
@@ -53,6 +57,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     404,
                     match (class_basename($e->getPrevious()->getModel())) {
                         'Livro' => 'Livro não encontrado.',
+                        'Materia' => 'Matéria não encontrada.',
                         'Reserva' => 'Reserva não encontrada.',
                         default => 'Registro não encontrado.',
                     },
@@ -74,6 +79,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $cabecalhos = $e instanceof HttpExceptionInterface ? $e->getHeaders() : [];
 
-            return response()->json(['erro' => $mensagem], $status, $cabecalhos);
+            $corpo = $request->is('api/v1', 'api/v1/*')
+                ? ['success' => false, 'erro' => $mensagem]
+                : ['erro' => $mensagem];
+
+            return response()->json($corpo, $status, $cabecalhos);
         });
     })->create();
