@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Popula o banco com as matérias, o acervo inicial e usuários de exemplo.
+ * Popula o banco com as matérias, o acervo inicial, turmas, usuários de
+ * exemplo e os depoimentos aprovados que aparecem no site.
  * Pode ser rodado mais de uma vez: o que já existe não é duplicado.
  */
 class DatabaseSeeder extends Seeder
@@ -71,10 +72,22 @@ class DatabaseSeeder extends Seeder
         ],
     ];
 
+    private const TURMAS = ['8º ano B', '9º ano A'];
+
     private const USUARIOS = [
         ['Coordenação da Biblioteca', 'admin@fpsf.edu.br', 'admin123', 'admin', null],
         ['Beatriz Lima', 'beatriz.lima@fpsf.edu.br', 'aluno123', 'aluno', '8º ano B'],
         ['Rafael Souza', 'rafael.souza@fpsf.edu.br', 'aluno123', 'aluno', '9º ano A'],
+    ];
+
+    /** Os depoimentos que estavam fixos em public/depoimentos.html (e-mail quando o autor tem login). */
+    private const DEPOIMENTOS = [
+        ['Beatriz Lima', 'Aluna do 8º ano', 'beatriz.lima@fpsf.edu.br', 'Antes eu só lia o que a professora passava. Agora entro no site pra escolher o próximo livro antes mesmo da aula acabar.'],
+        ['Prof. Marcos Andrade', 'Professor de Ciências', null, 'Consigo indicar leituras por matéria em segundos e acompanhar o que cada turma anda descobrindo. Facilitou muito o meu planejamento.'],
+        ['Sandra Oliveira', 'Mãe de aluno do 6º ano', null, 'Meu filho pede pra usar o computador pra "ver os livros da escola". Nunca pediu isso pra nenhum joguinho.'],
+        ['Enzo Ferreira', 'Aluno do 9º ano', null, 'Gosto de poder reler o resumo de "A República" antes da prova de Filosofia sem precisar levar o livro pra casa todo dia.'],
+        ['Profa. Renata Costa', 'Professora de Português', null, 'Uso a biblioteca virtual pra montar a lista de leitura do trimestre. É rápido mostrar as capas pra turma escolher junto comigo.'],
+        ['Gabriel Souza', 'Aluno do 9º ano', null, 'Achei "Vidas Secas" pela busca em menos de um minuto. Antes eu precisava esperar a bibliotecária ter um tempo livre pra me ajudar.'],
     ];
 
     public function run(): void
@@ -102,19 +115,45 @@ class DatabaseSeeder extends Seeder
                 }
             }
 
+            foreach (self::TURMAS as $nome) {
+                DB::table('turmas')->insertOrIgnore(['nome' => $nome, 'ano_letivo' => now()->year]);
+            }
+            $turmas = DB::table('turmas')->pluck('id', 'nome');
+
             foreach (self::USUARIOS as [$nome, $email, $senha, $papel, $turma]) {
-                Usuario::firstOrCreate(['email' => $email], [
+                $usuario = Usuario::firstOrCreate(['email' => $email], [
                     'nome' => $nome,
                     'senha' => $senha,
                     'papel' => $papel,
                     'turma' => $turma,
                 ]);
+
+                // turma_id ainda não está no $fillable do model; o texto em
+                // usuarios.turma continua sendo o que a API usa.
+                if ($turma !== null && $usuario->turma_id === null) {
+                    $usuario->forceFill(['turma_id' => $turmas[$turma]])->save();
+                }
+            }
+
+            foreach (self::DEPOIMENTOS as [$nome, $descricao, $email, $texto]) {
+                $jaExiste = DB::table('depoimentos')->where('nome', $nome)->where('texto', $texto)->exists();
+
+                if (! $jaExiste) {
+                    DB::table('depoimentos')->insert([
+                        'usuario_id' => $email ? Usuario::where('email', $email)->value('id') : null,
+                        'nome' => $nome,
+                        'descricao_autor' => $descricao,
+                        'texto' => $texto,
+                        'nota' => 5,
+                        'status' => 'aprovado',
+                    ]);
+                }
             }
         });
 
         $this->command?->info(sprintf(
-            '%d matérias, %d livros, %d usuários.',
-            count(self::MATERIAS), count(self::LIVROS), count(self::USUARIOS),
+            '%d matérias, %d livros, %d turmas, %d usuários, %d depoimentos.',
+            count(self::MATERIAS), count(self::LIVROS), count(self::TURMAS), count(self::USUARIOS), count(self::DEPOIMENTOS),
         ));
         $this->command?->line('  Admin:  admin@fpsf.edu.br / admin123');
         $this->command?->line('  Aluno:  beatriz.lima@fpsf.edu.br / aluno123');

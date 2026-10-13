@@ -108,13 +108,33 @@ estrutura vem das migrations em `database/migrations/`:
 | `0001_01_01_000001_create_cache_table` | `cache`, `cache_locks` |
 | `0001_01_01_000002_create_jobs_table` | `jobs`, `job_batches`, `failed_jobs` |
 | `2026_10_08_000000_create_acervo_tables` | `materias`, `livros`, `exemplares`, `reservas` |
+| `2026_10_13_000001_create_turmas_table` | `turmas` |
+| `2026_10_13_000002_add_turma_id_to_usuarios_table` | `usuarios.turma_id` + uma turma para cada valor de `usuarios.turma` |
+| `2026_10_13_000003_create_favoritos_table` | `favoritos` |
+| `2026_10_13_000004_create_depoimentos_table` | `depoimentos` |
+| `2026_10_13_000005_create_mensagens_contato_table` | `mensagens_contato` |
+| `2026_10_13_000006_alter_reservas_for_emprestimo` | `reservas`: `retirada_em`, `devolver_ate`, `renovacoes`, `observacao` |
 
-Ao todo são 12 tabelas (contando `migrations`), 70 colunas e 4 chaves estrangeiras:
-`livros.materia_slug → materias.slug`, `exemplares.livro_id → livros.id`,
-`reservas.exemplar_id → exemplares.id` e `reservas.usuario_id → usuarios.id`.
+Ao todo são 16 tabelas (contando `migrations`), 104 colunas e 9 chaves estrangeiras:
+
+| Chave estrangeira | Ao apagar o pai |
+|---|---|
+| `livros.materia_slug → materias.slug` | bloqueia |
+| `exemplares.livro_id → livros.id` | cascade |
+| `reservas.exemplar_id → exemplares.id` | cascade |
+| `reservas.usuario_id → usuarios.id` | cascade |
+| `usuarios.turma_id → turmas.id` | set null |
+| `favoritos.usuario_id → usuarios.id` | cascade |
+| `favoritos.livro_id → livros.id` | cascade |
+| `depoimentos.usuario_id → usuarios.id` | set null |
+| `mensagens_contato.usuario_id → usuarios.id` | set null |
 
 A regra "um exemplar só pode ter uma reserva aberta" é garantida pelo próprio
 banco com um índice único parcial (`reservas_exemplar_aberta_unique`).
+
+A coluna `usuarios.turma` (texto livre) continua existindo enquanto a API não
+passa a usar `turma_id`. O levantamento completo, com o mapa do banco e as
+conferências feitas, está em [`docs/banco-de-dados.md`](docs/banco-de-dados.md).
 
 > **Atenção:** não rode `migrate:fresh`, `migrate:refresh`, `migrate:reset` nem
 > `db:wipe` no banco principal. Esses comandos apagam todas as tabelas, incluindo
