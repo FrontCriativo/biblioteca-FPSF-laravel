@@ -24,10 +24,13 @@ as migrations pendentes.
 
 ```bash
 docker compose logs -f                                   # ver os logs
-docker compose exec -u app app php artisan migrate:fresh --seed   # zerar o banco
+docker compose exec -u app app php artisan migrate:status   # ver as migrations
 docker compose exec -u app app php artisan test          # rodar os testes
 docker compose down                                      # parar
 ```
+
+Para voltar o banco aos dados de exemplo, veja [Banco de dados](#banco-de-dados).
+Não use `migrate:fresh` no banco principal.
 
 O código fica montado dentro do container, então as alterações aparecem na hora.
 
@@ -57,7 +60,7 @@ Usuários de exemplo criados pelo seeder:
 | Aluna | beatriz.lima@fpsf.edu.br | aluno123 |
 | Aluno | rafael.souza@fpsf.edu.br | aluno123 |
 
-Para zerar o banco e popular de novo: `php artisan migrate:fresh --seed`.
+Para voltar o banco aos dados de exemplo, veja [Banco de dados](#banco-de-dados).
 
 ## Testes
 
@@ -96,20 +99,91 @@ continuam vindo como `{ "erro": "mensagem" }`.
 
 ## Banco de dados
 
-Por padrão usa SQLite (`database/database.sqlite`). Para MySQL, ajuste no `.env`:
+O banco é **SQLite**, no arquivo `database/database.sqlite` (fora do Git). Toda a
+estrutura vem das migrations em `database/migrations/`:
 
-```dotenv
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=biblioteca
-DB_USERNAME=root
-DB_PASSWORD=
-```
+| Migration | Tabelas |
+|---|---|
+| `0001_01_01_000000_create_usuarios_table` | `usuarios`, `sessions` |
+| `0001_01_01_000001_create_cache_table` | `cache`, `cache_locks` |
+| `0001_01_01_000002_create_jobs_table` | `jobs`, `job_batches`, `failed_jobs` |
+| `2026_10_08_000000_create_acervo_tables` | `materias`, `livros`, `exemplares`, `reservas` |
+
+Ao todo são 12 tabelas (contando `migrations`), 70 colunas e 4 chaves estrangeiras:
+`livros.materia_slug → materias.slug`, `exemplares.livro_id → livros.id`,
+`reservas.exemplar_id → exemplares.id` e `reservas.usuario_id → usuarios.id`.
 
 A regra "um exemplar só pode ter uma reserva aberta" é garantida pelo próprio
-banco com um índice único parcial no SQLite/PostgreSQL. No MySQL, que não tem
-esse tipo de índice, a garantia vem do `lockForUpdate()` dentro da transação.
+banco com um índice único parcial (`reservas_exemplar_aberta_unique`).
+
+> **Atenção:** não rode `migrate:fresh`, `migrate:refresh`, `migrate:reset` nem
+> `db:wipe` no banco principal. Esses comandos apagam todas as tabelas, incluindo
+> os livros e capas cadastrados pela coordenação e as reservas dos alunos.
+
+### Backup
+
+A pasta `backup/` está no `.gitignore`, porque os backups têm e-mails e hashes de
+senha dos alunos. O `VACUUM INTO` gera uma cópia consistente mesmo com o site no ar
+e não sobrescreve um arquivo que já exista:
+
+```bash
+mkdir -p backup
+docker compose exec -u app app php -r '(new PDO("sqlite:database/database.sqlite"))->prepare("VACUUM INTO ?")->execute(["backup/biblioteca-".date("Y-m-d").".sqlite"]);'
+```
+
+Para restaurar, pare o container (`docker compose stop app`), copie o backup por
+cima de `database/database.sqlite` e suba de novo (`docker compose start app`).
+
+### Voltar aos dados de exemplo
+
+Em vez de `migrate:fresh`, tire o banco atual do caminho e reinicie o container.
+O `docker/entrypoint.sh` cria um banco novo e roda as migrations com o seeder:
+
+```bash
+mkdir -p backup
+mv database/database.sqlite backup/biblioteca-$(date +%F-%H%M).sqlite
+docker compose restart app
+```
+
+### Validar as migrations num banco vazio
+
+Para conferir se as migrations recriam o banco inteiro, use um segundo arquivo SQLite.
+A opção `-e DB_DATABASE=...` é o que protege o banco principal, então nunca a tire
+desses comandos:
+
+```bash
+touch database/biblioteca_migrations_teste.sqlite
+docker compose exec -u app -e DB_DATABASE=/var/www/html/database/biblioteca_migrations_teste.sqlite app php artisan db:show   # confirme o arquivo ANTES
+docker compose exec -u app -e DB_DATABASE=/var/www/html/database/biblioteca_migrations_teste.sqlite app php artisan migrate
+docker compose exec -u app -e DB_DATABASE=/var/www/html/database/biblioteca_migrations_teste.sqlite app php artisan migrate:status
+rm database/biblioteca_migrations_teste.sqlite   # depois de comparar
+```
+
+Os testes automatizados não usam nenhum desses arquivos. Eles rodam num SQLite em
+memória (ver `phpunit.xml`).
+
+### Fluxo correto a partir de agora
+
+Mudanças de estrutura (tabela, coluna, índice, chave estrangeira) entram **só por
+migration nova**. Nunca altere o banco direto num editor de SQLite (DB Browser,
+extensão do VS Code etc.) e não edite migrations que já rodaram:
+
+```bash
+docker compose exec -u app app php artisan make:migration add_isbn_to_livros_table
+# edite o arquivo criado em database/migrations/ (up() e down())
+docker compose exec -u app app php artisan migrate
+docker compose exec -u app app php artisan migrate:status
+```
+
+Faça um backup antes de rodar migrations que alterem tabelas com dados. O container
+já roda `php artisan migrate --force` toda vez que sobe.
+
+### MySQL (opcional)
+
+O projeto também roda em MySQL (o `pdo_mysql` já vem na imagem): basta ajustar
+`DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` e `DB_PASSWORD`
+no `.env`. O MySQL não tem índice parcial, então lá a regra de uma reserva aberta
+por exemplar fica a cargo do `lockForUpdate()` em `App\Services\ServicoDeReservas`.
 
 ## Reservas vencidas
 

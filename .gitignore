@@ -13,6 +13,8 @@
 /.vscode
 /.zed
 /auth.json
+# Backups do banco: têm e-mails e hashes de senha dos alunos.
+/backup/
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json
