@@ -1,0 +1,174 @@
+{
+  "info": {
+    "name": "Biblioteca FPSF — API v1",
+    "description": "API v1 da Biblioteca Virtual FPSF. Rode primeiro \"Autenticação > Login\": o script de Tests guarda o token na variável {{token}}, usada pelas requisições protegidas (Authorization: Bearer). Documentação: http://localhost:8000/api/documentacao",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api/v1", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Públicas",
+      "item": [
+        {
+          "name": "Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/status", "host": ["{{base_url}}"], "path": ["status"] }
+          }
+        },
+        {
+          "name": "Livros",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/livros?busca=quixote",
+              "host": ["{{base_url}}"],
+              "path": ["livros"],
+              "query": [{ "key": "busca", "value": "quixote" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Autenticação",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login com sucesso (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const corpo = pm.response.json();",
+                  "if (corpo.success && corpo.data && corpo.data.token) {",
+                  "    pm.collectionVariables.set('token', corpo.data.token);",
+                  "    console.log('Token salvo na variável token da collection.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"aluno.teste@fpsf.edu.br\",\n    \"senha\": \"12345678\",\n    \"device_name\": \"postman-tipi05\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logout com sucesso (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// O token deixou de valer: limpa a variável.",
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('token', '');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Perfil (token)",
+      "item": [
+        {
+          "name": "Consultar perfil",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/usuario", "host": ["{{base_url}}"], "path": ["usuario"] }
+          }
+        },
+        {
+          "name": "Atualizar perfil (PUT)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Aluno Teste API\",\n    \"email\": \"aluno.teste@fpsf.edu.br\",\n    \"papel\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/usuario", "host": ["{{base_url}}"], "path": ["usuario"] },
+            "description": "O campo papel é ignorado: só nome e e-mail podem mudar por aqui."
+          }
+        },
+        {
+          "name": "Atualizar perfil (PATCH)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Aluno Teste API\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/usuario", "host": ["{{base_url}}"], "path": ["usuario"] }
+          }
+        },
+        {
+          "name": "Alterar senha",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"senha_atual\": \"12345678\",\n    \"nova_senha\": \"NOVA_SENHA\",\n    \"nova_senha_confirmation\": \"NOVA_SENHA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/usuario/senha", "host": ["{{base_url}}"], "path": ["usuario", "senha"] },
+            "description": "Troque NOVA_SENHA (mínimo 8 caracteres) antes de enviar. Os tokens de outros aparelhos são encerrados."
+          }
+        }
+      ]
+    }
+  ]
+}

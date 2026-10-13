@@ -19,8 +19,18 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        // Não há chave "api:" aqui de propósito: ela carregaria routes/api.php uma
+        // segunda vez, no grupo "api" (sem sessão), e o login do site quebraria.
         then: function () {
-            // API com sessão por cookie (grupo "web"), como o front-end espera.
+            // API v1 por token (Sanctum): grupo "api", sem sessão e sem CSRF.
+            // O 3º parâmetro do throttle ("v1") dá à v1 um contador próprio; sem
+            // ele, a contagem seria a mesma do throttle:10,1 do login do site.
+            Route::middleware(['api', ExpirarReservasVencidas::class, 'throttle:60,1,v1'])
+                ->prefix('api/v1')
+                ->name('api.v1.')
+                ->group(base_path('routes/api_v1.php'));
+
+            // API do site com sessão por cookie (grupo "web"), como o front-end espera.
             Route::middleware(['web', ExpirarReservasVencidas::class])
                 ->prefix('api')
                 ->group(base_path('routes/api.php'));

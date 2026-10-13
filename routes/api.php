@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Admin;
-use App\Http\Controllers\Api\V1;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LivroController;
 use App\Http\Controllers\MateriaController;
@@ -9,31 +8,13 @@ use App\Http\Controllers\ReservaController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| Rotas da API (prefixo /api). Carregadas em bootstrap/app.php com o grupo
-| "web": sessão por cookie + proteção CSRF (cabeçalho X-XSRF-TOKEN).
-*/
-
-/*
-| API pública v1 (/api/v1/...): só leitura, respostas { "success": true, "data": ... }.
-| Fica neste arquivo (e não numa chave "api:" no withRouting) para não carregar
-| as rotas duas vezes. Documentação em /api/documentacao.
+| Rotas da API do site (prefixo /api), usadas por public/js/api.js. Carregadas
+| em bootstrap/app.php com o grupo "web": sessão por cookie + proteção CSRF
+| (cabeçalho X-XSRF-TOKEN).
 |
-| O 3º parâmetro do throttle ("v1") dá à v1 um contador próprio. Sem ele, o
-| contador seria o mesmo do throttle:10,1 do login (a chave é só o IP), e quem
-| chamasse a v1 algumas vezes ficaria sem conseguir entrar no site.
+| A API v1 (/api/v1/...) fica em routes/api_v1.php, num grupo sem sessão, para
+| aceitar o token do Sanctum sem esbarrar no CSRF.
 */
-Route::prefix('v1')->name('api.v1.')->middleware('throttle:60,1,v1')->group(function () {
-    // Status da API
-    Route::get('/status', [V1\StatusController::class, 'index'])->name('status');
-    // Depoimentos
-    Route::get('/depoimentos', [V1\DepoimentoController::class, 'index'])->name('depoimentos');
-    // Matérias
-    Route::get('/materias', [V1\MateriaController::class, 'index'])->name('materias');
-    Route::get('/materias/{materia}/livros', [V1\MateriaController::class, 'livros'])->name('materias.livros');
-    // Livros
-    Route::get('/livros', [V1\LivroController::class, 'index'])->name('livros');
-    Route::get('/livros/{livro:slug}', [V1\LivroController::class, 'show'])->name('livros.show');
-});
 
 // Sessão
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');

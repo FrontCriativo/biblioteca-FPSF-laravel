@@ -80,16 +80,17 @@ php artisan test
 | `backend/db/schema.sql` | `database/migrations/` |
 | `backend/db/seed.js` | `database/seeders/DatabaseSeeder.php` |
 | `frontend/` | `public/` |
-| — (novo) API pública v1 | `app/Http/Controllers/Api/V1/` (rotas no topo de `routes/api.php`, dentro de `Route::prefix('v1')`) |
+| — (novo) API v1 (pública + token) | `app/Http/Controllers/Api/V1/` (rotas em `routes/api_v1.php`) |
 | — (novo) documentação da API | `resources/views/api/documentacao.blade.php` (rota em `routes/web.php`) |
 
-## API pública v1
+## API v1
 
-API só de leitura, sem login, para aplicativos e outros sistemas. A documentação
-completa, com exemplos de resposta, está em
-[`/api/documentacao`](http://localhost:8000/api/documentacao).
+API para aplicativos e outros sistemas. A documentação completa, com exemplos de
+resposta, está em [`/api/documentacao`](http://localhost:8000/api/documentacao).
 
 URL base: `http://localhost:8000/api/v1`. Limite de 60 requisições por minuto.
+
+### Endpoints públicos (sem login)
 
 | Método | Rota | Parâmetros | Devolve |
 |---|---|---|---|
@@ -100,16 +101,48 @@ URL base: `http://localhost:8000/api/v1`. Limite de 60 requisições por minuto.
 | GET | `/api/v1/livros` | `?materia=` · `?busca=` | livros com disponibilidade |
 | GET | `/api/v1/livros/{slug}` | slug do livro | detalhe do livro (404 se não existir) |
 
+### Autenticação por token (Laravel Sanctum)
+
+O aluno envia e-mail e senha para `/auth/login` e recebe um token. Nas rotas
+protegidas, o token vai no cabeçalho `Authorization: Bearer SEU_TOKEN`. O token
+vale 7 dias, um por dispositivo (`device_name`); o cookie de sessão do site não
+serve aqui.
+
+| Método | Rota | Acesso | Objetivo |
+|---|---|---|---|
+| POST | `/api/v1/auth/login` | público (10 tentativas/min) | autenticar e gerar o token |
+| GET | `/api/v1/usuario` | token | consultar o próprio perfil |
+| PUT | `/api/v1/usuario` | token | atualizar nome e e-mail |
+| PATCH | `/api/v1/usuario` | token | atualização parcial do perfil |
+| PUT | `/api/v1/usuario/senha` | token | alterar a senha (encerra os outros tokens) |
+| POST | `/api/v1/auth/logout` | token | invalidar o token atual |
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  -d '{"email":"aluno.teste@fpsf.edu.br","senha":"12345678","device_name":"meu-celular"}'
+
+curl http://localhost:8000/api/v1/usuario \
+  -H "Accept: application/json" -H "Authorization: Bearer SEU_TOKEN"
+```
+
+Passo a passo (fluxo, tabela `personal_access_tokens`, testes com curl e Postman):
+[`docs/api-autenticacao.md`](docs/api-autenticacao.md). Collection do Postman:
+[`docs/postman/biblioteca-fpsf-v1.postman_collection.json`](docs/postman/biblioteca-fpsf-v1.postman_collection.json).
+
 Formato das respostas:
 
 ```json
 { "success": true, "data": { } }
+{ "success": true, "mensagem": "Perfil atualizado com sucesso.", "data": { } }
 { "success": false, "erro": "Livro não encontrado." }
 ```
 
-A v1 fica no próprio `routes/api.php` (que já é carregado com o prefixo `api` no
-`then:` do `bootstrap/app.php`), e não numa chave `api:` no `withRouting()`: isso
-carregaria o arquivo duas vezes e tiraria a sessão das rotas que o site usa.
+A v1 fica em `routes/api_v1.php`, registrado no `then:` do `bootstrap/app.php`
+com o grupo `api` (sem sessão e sem CSRF), para aceitar o token vindo de um
+aplicativo, do curl ou do Postman. A API do site (`routes/api.php`) continua no
+grupo `web`. Não há chave `api:` no `withRouting()`: ela carregaria o
+`routes/api.php` uma segunda vez, sem sessão, e o login do site quebraria.
 
 ## API do site
 
@@ -147,8 +180,9 @@ estrutura vem das migrations em `database/migrations/`:
 | `2026_10_13_000006_alter_reservas_for_emprestimo` | `reservas`: `retirada_em`, `devolver_ate`, `renovacoes`, `observacao` |
 | `2026_10_13_123859_remove_turma_from_usuarios_table` | remove o texto livre `usuarios.turma` (o `down()` o recria a partir de `turmas.nome`) |
 | `2026_10_13_123900_add_ativo_to_usuarios_table` | `usuarios.ativo` (padrão `true`; conta desativada não entra) |
+| `2026_10_13_124229_create_personal_access_tokens_table` | `personal_access_tokens` (tokens da API v1, Sanctum) |
 
-Ao todo são 16 tabelas (contando `migrations`), 104 colunas e 9 chaves estrangeiras:
+Ao todo são 17 tabelas (contando `migrations`), 114 colunas e 9 chaves estrangeiras:
 
 | Chave estrangeira | Ao apagar o pai |
 |---|---|

@@ -579,11 +579,38 @@ recriação, então nada foi apagado em cascata.
 `tests/Feature/EstruturaDoBancoTest.php` agora confere que `usuarios.turma` não existe mais e que
 `ativo` existe.
 
+## Parte 7 — Tokens da API v1 (`personal_access_tokens`)
+
+Criada pela migration `2026_10_13_124229_create_personal_access_tokens_table`, publicada pelo
+`php artisan install:api` (Laravel Sanctum). Antes do `migrate`, backup em
+`backup/biblioteca-antes-sanctum-2026-10-13-094555.sqlite` (`integrity_check` ok); depois, as
+contagens das outras tabelas continuaram iguais e o `PRAGMA foreign_key_check` vazio.
+
+| Coluna | Tipo | Observação |
+|---|---|---|
+| id | integer | PK. É o número antes do `\|` no token entregue ao aplicativo |
+| tokenable_type, tokenable_id | varchar, integer | dono do token (`App\Models\Usuario` + id). Índice composto |
+| name | text | nome do dispositivo (`device_name`) |
+| token | varchar(64) | **hash SHA-256** do token, único. O texto do token não é guardado |
+| abilities | text, nulo | permissões (`["*"]`) |
+| last_used_at | datetime, nulo | último uso |
+| expires_at | datetime, nulo | indexado; a validade usada é o `expiration` de `config/sanctum.php` (7 dias) |
+| created_at, updated_at | datetime, nulo | padrão do Laravel (tabela do pacote, por isso em inglês) |
+
+Não há chave estrangeira para `usuarios` (a relação é polimórfica). O aplicativo nunca acessa essa
+tabela: só o Sanctum cria, confere e apaga as linhas. Os tokens vencidos são apagados pelo
+`sanctum:prune-expired --hours=24`, agendado em `routes/console.php`. O fluxo completo está em
+[`docs/api-autenticacao.md`](api-autenticacao.md).
+
+Com ela, `usuarios.ativo` passou a ser usado: conta desativada não entra no site nem recebe token
+(erro 403).
+
 ## Próxima etapa
 
 - Models `Favorito`, `MensagemContato` e os novos campos em `Reserva`.
-- Rotas da API, Form Requests (tamanhos dos campos, nota 1–5, assuntos e status permitidos)
-  e Resources.
+- Rotas da API com token (favoritos, minhas reservas, envio de depoimento e de mensagem de
+  contato), Form Requests (tamanhos dos campos, nota 1–5, assuntos e status permitidos) e
+  Resources.
 - Retirada preenchendo `retirada_em` e `devolver_ate`; renovação; lista de atrasos.
 - Integração das páginas `depoimentos.html` e `contato.html`.
 - Tela da coordenação para desativar/reativar contas (`usuarios.ativo`).

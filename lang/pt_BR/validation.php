@@ -12,6 +12,8 @@ return [
     'exists' => 'O valor do campo :attribute não existe.',
     'unique' => 'Já existe um registro com esse :attribute.',
     'regex' => 'O formato do campo :attribute é inválido.',
+    'confirmed' => 'A confirmação do campo :attribute não confere.',
+    'different' => 'O campo :attribute deve ser diferente do campo :other.',
     'min' => [
         'numeric' => 'O campo :attribute deve ser no mínimo :min.',
         'string' => 'O campo :attribute precisa ter ao menos :min caracteres.',
@@ -28,11 +30,18 @@ return [
         'senha' => [
             'min' => 'A senha precisa ter ao menos :min caracteres.',
         ],
+        'nova_senha' => [
+            'min' => 'A nova senha precisa ter ao menos :min caracteres.',
+            'different' => 'A nova senha precisa ser diferente da senha atual.',
+        ],
     ],
 
     'attributes' => [
         'email' => 'e-mail',
         'senha' => 'senha',
+        'senha_atual' => 'senha atual',
+        'nova_senha' => 'nova senha',
+        'device_name' => 'nome do dispositivo',
         'nome' => 'nome',
         'turma' => 'turma',
         'papel' => 'papel',

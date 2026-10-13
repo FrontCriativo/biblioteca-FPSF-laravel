@@ -12,3 +12,7 @@ Artisan::command('reservas:expirar', function (ServicoDeReservas $reservas) {
 // Opcional: com o cron do Laravel ativo (php artisan schedule:run a cada minuto),
 // as reservas vencidas também são canceladas sem depender de alguém usar o site.
 Schedule::command('reservas:expirar')->everyFifteenMinutes();
+
+// Apaga da tabela personal_access_tokens os tokens da API v1 vencidos há mais de 24 h
+// (a validade é o 'expiration' de config/sanctum.php).
+Schedule::command('sanctum:prune-expired --hours=24')->daily();

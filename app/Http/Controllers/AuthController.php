@@ -17,14 +17,26 @@ class AuthController extends Controller
             'password' => $request->input('senha'),
         ];
 
-        if (! Auth::attempt($credenciais)) {
+        // validate() confere a senha sem abrir a sessão; só depois de saber que a
+        // conta está ativa o usuário entra de fato (login()).
+        $guarda = Auth::guard('web');
+
+        if (! $guarda->validate($credenciais)) {
             abort(401, 'E-mail ou senha incorretos.');
         }
+
+        $usuario = $guarda->getLastAttempted();
+
+        if (! $usuario->ativo) {
+            abort(403, 'Conta desativada. Procure a coordenação.');
+        }
+
+        $guarda->login($usuario);
 
         // Novo ID de sessão a cada login (evita session fixation).
         $request->session()->regenerate();
 
-        return new UsuarioResource($request->user());
+        return new UsuarioResource($usuario);
     }
 
     public function logout(Request $request): JsonResponse

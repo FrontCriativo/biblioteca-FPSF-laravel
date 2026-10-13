@@ -11,14 +11,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
 #[Table(name: 'usuarios')]
 #[Fillable(['nome', 'email', 'senha', 'papel', 'turma_id', 'ativo'])]
 #[Hidden(['senha'])]
 class Usuario extends Authenticatable
 {
-    /** @use HasFactory<UsuarioFactory> */
-    use HasFactory;
+    /**
+     * HasApiTokens: tokens da API v1 (createToken(), tokens(), currentAccessToken()).
+     * Não é preciso o getAuthPassword() da aula: o $authPasswordName abaixo já diz
+     * ao Laravel que o hash fica na coluna "senha".
+     *
+     * @use HasFactory<UsuarioFactory>
+     */
+    use HasApiTokens, HasFactory;
 
     public const CREATED_AT = 'criado_em';
 
