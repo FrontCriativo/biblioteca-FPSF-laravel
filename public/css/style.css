@@ -248,7 +248,10 @@ button, input, textarea{
   width: 420px;
   height: 420px;
   border-radius: 50%;
-  border: 90px solid rgba(129,119,201,.16);
+  background: url("../assets/fpsf.jpg") center / cover no-repeat;
+  opacity: .12;
+  transform: rotate(20deg);
+  pointer-events: none;
 }
 .hero .container{
   position: relative;
@@ -350,18 +353,17 @@ button, input, textarea{
 }
 .subjects__head h2{ font-size: 24px; }
 .subjects__row{
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
+  /* as caixas dividem a largura da linha; as que não cabem descem para a linha de baixo */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 12px;
   padding-bottom: 14px;
-  scrollbar-width: thin;
 }
 .subject-chip{
-  flex: 0 0 auto;
-  width: 108px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   text-align: center;
   padding: 16px 8px;
@@ -531,36 +533,9 @@ button, input, textarea{
 }
 .catalog__toolbar .search-form input::placeholder{ color: #9C9FB8; }
 
-.chip-filter{
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  margin-bottom: 34px;
-}
-.chip{
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--heading);
-  cursor: pointer;
-  margin-bottom: 0;
-  font-weight: 500;
-}
-.chip img{ width: 15px; height: 15px; }
-.chip.is-active, .chip:hover{
-  background: var(--navy);
-  border-color: var(--navy);
-  color: #fff;
-}
-.chip.is-active img, .chip:hover img{ filter: brightness(0) invert(1); }
+/* filtro do catálogo reaproveita as caixas de "Explore por matéria" */
+.catalog__filtros{ margin-bottom: 26px; }
+button.subject-chip{ cursor: pointer; }
 
 .book-grid{
   display: grid;
@@ -568,7 +543,7 @@ button, input, textarea{
   gap: 30px 24px;
 }
 .book-grid .book{ width: auto; }
-.book-grid .book__cover{ width: 100%; height: 190px; }
+.book-grid .book__cover{ width: 100%; height: auto; aspect-ratio: 2 / 3; }
 
 .category-block{ margin-bottom: 46px; }
 .category-block__head{

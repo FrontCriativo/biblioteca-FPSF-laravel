@@ -13,7 +13,7 @@
 </script>
 <title>Documentação da API — Biblioteca Virtual</title>
 <link rel="icon" href="/assets/icon-fpsf.png">
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=3">
 <style>
   .doc{ padding: 42px 0 10px; }
   .doc section{ margin-bottom: 46px; }

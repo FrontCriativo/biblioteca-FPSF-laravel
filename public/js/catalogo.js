@@ -58,6 +58,8 @@ async function desenhar() {
     api.livros({ materia: materiaAtiva, busca: termoBusca }),
   ]);
 
+  materias.sort((a, b) => posicaoMateria(a.slug) - posicaoMateria(b.slug));
+
   const porMateria = new Map();
   for (const livro of livros) {
     if (!porMateria.has(livro.materia_slug)) porMateria.set(livro.materia_slug, []);
@@ -80,21 +82,32 @@ async function desenhar() {
   }).join('');
 }
 
+// mesma ordem das caixas de "Explore por matéria" na página inicial
+const ORDEM_MATERIAS = [
+  'literatura', 'matematica', 'historia', 'geografia', 'ciencias',
+  'filosofia', 'artes', 'musica', 'tecnologia', 'meio-ambiente',
+];
+
+function posicaoMateria(slug) {
+  const indice = ORDEM_MATERIAS.indexOf(slug);
+  return indice === -1 ? ORDEM_MATERIAS.length : indice;
+}
+
 async function montarFiltros() {
   const materias = await api.materias();
-  filtros.innerHTML = [
-    `<button class="chip${materiaAtiva === 'todos' ? ' is-active' : ''}" data-subject="todos">Todos</button>`,
-    ...materias.map((m) => `
-      <button class="chip${materiaAtiva === m.slug ? ' is-active' : ''}" data-subject="${escaparHtml(m.slug)}">
-        <img src="assets/${escaparHtml(m.icone)}" alt="">${escaparHtml(m.nome)}
-      </button>`),
-  ].join('');
+  materias.sort((a, b) => posicaoMateria(a.slug) - posicaoMateria(b.slug));
+
+  filtros.innerHTML = materias.map((m) => `
+    <button class="subject-chip${materiaAtiva === m.slug ? ' is-active' : ''}" type="button" data-subject="${escaparHtml(m.slug)}">
+      <img src="assets/${escaparHtml(m.icone)}" alt="">${escaparHtml(m.nome)}
+    </button>`).join('');
 
   filtros.addEventListener('click', (evento) => {
-    const chip = evento.target.closest('.chip');
+    const chip = evento.target.closest('.subject-chip');
     if (!chip) return;
-    materiaAtiva = chip.dataset.subject;
-    filtros.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c === chip));
+    // clicar de novo na matéria selecionada volta a mostrar todas
+    materiaAtiva = materiaAtiva === chip.dataset.subject ? 'todos' : chip.dataset.subject;
+    filtros.querySelectorAll('.subject-chip').forEach((c) => c.classList.toggle('is-active', c.dataset.subject === materiaAtiva));
     desenhar();
   });
 }
