@@ -518,6 +518,39 @@
       </article>
     </section>
 
+    <section id="app-expo">
+      <h2>Rotas do aplicativo Expo</h2>
+      <p>O aplicativo móvel usa nomes de rota e de campo próprios. Estas rotas devolvem os mesmos dados das anteriores nesse formato, com o mesmo envelope <code>{ "success": ... }</code> e os mesmos erros.</p>
+      <div class="doc__tabela">
+        <table>
+          <thead><tr><th>Método</th><th>URL</th><th>Acesso</th><th>Equivale a</th></tr></thead>
+          <tbody>
+            <tr><td><span class="metodo">POST</span></td><td><code>/api/v1/login</code></td><td>Público</td><td><code>/api/v1/auth/login</code>, com <code>password</code> no lugar de <code>senha</code> e o <code>token</code> no topo da resposta</td></tr>
+            <tr><td><span class="metodo">GET</span></td><td><code>/api/v1/produto</code></td><td>Público</td><td><code>/api/v1/livros</code></td></tr>
+            <tr><td><span class="metodo">GET</span></td><td><code>/api/v1/produto/{id}</code></td><td>Público</td><td><code>/api/v1/livros/{slug}</code>, pelo id numérico</td></tr>
+            <tr><td><span class="metodo">GET</span></td><td><code>/api/v1/categoria</code></td><td>Público</td><td><code>/api/v1/materias</code></td></tr>
+            <tr><td><span class="metodo">PUT</span></td><td><code>/api/v1/cliente/senha</code></td><td>Token</td><td><code>/api/v1/usuario/senha</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+@verbatim
+      <pre><code>// GET /api/v1/produto → 200
+{ "success": true, "data": [ {
+    "id": 3, "slug": "dom-quixote", "titulo": "Dom Quixote", "autor": "Miguel de Cervantes",
+    "categoria_produto": { "id_categoria": "literatura", "nome_categoria": "Literatura" },
+    "genero": "Literatura", "imagem": "domQuixote.jpg",
+    "status": "disponivel", "status_produto": "ATIVO", "livrosDestaque": "NAO",
+    "descricao": "...", "total_exemplares": 2, "disponiveis": 2
+} ] }
+
+// GET /api/v1/categoria → 200
+{ "success": true, "data": [ {
+    "id_categoria": "artes", "nome_categoria": "Artes", "status_categoria": "ATIVO", "ordem_categoria": 1, "icone": "artes.png"
+} ] }</code></pre>
+@endverbatim
+      <p><code>status</code> é <code>disponivel</code> quando há ao menos um exemplar livre. <code>livrosDestaque</code> é <code>SIM</code> nos 6 livros cadastrados por último. <code>id_categoria</code> é o slug da matéria. A capa fica em <code>/assets/&lt;imagem&gt;</code>.</p>
+    </section>
+
     <section id="api-e-view">
       <h2>Diferença entre API e View</h2>
       <p>A mesma aplicação Laravel responde de dois jeitos: a API devolve dados para outro programa usar, e a view (Blade) devolve uma página pronta para uma pessoa ler. Esta página é uma view; os endpoints que ela descreve são a API.</p>

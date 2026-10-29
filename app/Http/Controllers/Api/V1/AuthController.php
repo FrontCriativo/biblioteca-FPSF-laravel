@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Requests\LoginAppRequest;
 use App\Http\Requests\LoginTokenRequest;
 use App\Http\Resources\UsuarioResource;
 use App\Models\Usuario;
@@ -20,26 +21,35 @@ class AuthController extends Controller
     /** POST /api/v1/auth/login */
     public function login(LoginTokenRequest $request): JsonResponse
     {
-        $usuario = Usuario::firstWhere('email', mb_strtolower(trim($request->validated('email'))));
-
-        // Mesma mensagem para e-mail inexistente e senha errada: a resposta não
-        // revela quais e-mails estão cadastrados.
-        if (! $usuario || ! Hash::check($request->validated('senha'), $usuario->senha)) {
-            abort(401, 'E-mail ou senha incorretos.');
-        }
-
-        if (! $usuario->ativo) {
-            abort(403, 'Conta desativada. Procure a coordenação.');
-        }
-
-        // Um token por dispositivo: entrar de novo no mesmo aparelho substitui o anterior.
-        $dispositivo = $request->validated('device_name') ?? 'app';
-        $usuario->tokens()->where('name', $dispositivo)->delete();
-        $token = $usuario->createToken($dispositivo)->plainTextToken;
+        [$usuario, $token] = $this->emitirToken(
+            $request->validated('email'),
+            $request->validated('senha'),
+            $request->validated('device_name'),
+        );
 
         return $this->sucessoComMensagem('Login realizado com sucesso.', [
             'token' => $token,
             'usuario' => new UsuarioResource($usuario),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/login — formato do aplicativo Expo: recebe "password" e
+     * devolve o token no topo da resposta, { "success": true, "token": "..." }.
+     */
+    public function loginApp(LoginAppRequest $request): JsonResponse
+    {
+        [$usuario, $token] = $this->emitirToken(
+            $request->validated('email'),
+            $request->validated('password'),
+            $request->validated('device_name'),
+        );
+
+        return response()->json([
+            'success' => true,
+            'mensagem' => 'Login realizado com sucesso.',
+            'token' => $token,
+            'usuario' => (new UsuarioResource($usuario))->resolve($request),
         ]);
     }
 
@@ -49,5 +59,27 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return $this->sucessoComMensagem('Logout realizado com sucesso.');
+    }
+
+    /** @return array{0: Usuario, 1: string} */
+    private function emitirToken(string $email, string $senha, ?string $dispositivo): array
+    {
+        $usuario = Usuario::firstWhere('email', mb_strtolower(trim($email)));
+
+        // Mesma mensagem para e-mail inexistente e senha errada: a resposta não
+        // revela quais e-mails estão cadastrados.
+        if (! $usuario || ! Hash::check($senha, $usuario->senha)) {
+            abort(401, 'E-mail ou senha incorretos.');
+        }
+
+        if (! $usuario->ativo) {
+            abort(403, 'Conta desativada. Procure a coordenação.');
+        }
+
+        // Um token por dispositivo: entrar de novo no mesmo aparelho substitui o anterior.
+        $dispositivo ??= 'app';
+        $usuario->tokens()->where('name', $dispositivo)->delete();
+
+        return [$usuario, $usuario->createToken($dispositivo)->plainTextToken];
     }
 }

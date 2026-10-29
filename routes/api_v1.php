@@ -39,3 +39,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/usuario/senha', [V1\UsuarioController::class, 'updateSenha'])->name('usuario.senha');
     Route::post('/auth/logout', [V1\AuthController::class, 'logout'])->name('auth.logout');
 });
+
+/*
+| Aplicativo Expo: as mesmas operações com os nomes de rota e de campo que o
+| app usa (src/config/api.ts do app). Mesmo envelope e mesmos erros da v1.
+*/
+Route::post('/login', [V1\AuthController::class, 'loginApp'])->middleware('throttle:10,1,v1-login')->name('app.login');
+Route::get('/produto', [V1\ProdutoController::class, 'index'])->name('app.produto');
+Route::get('/produto/{livro}', [V1\ProdutoController::class, 'show'])->whereNumber('livro')->name('app.produto.show');
+Route::get('/categoria', [V1\CategoriaController::class, 'index'])->name('app.categoria');
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::put('/cliente/senha', [V1\UsuarioController::class, 'updateSenha'])->name('app.cliente.senha');
+});
